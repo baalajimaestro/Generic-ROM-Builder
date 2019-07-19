@@ -191,7 +191,7 @@ prepare_source() {
     printf "%s\n" "**************************"
     printf "%s\n\n" $($reset)
     source_android_scr=$prepare_source_scr
-    repo init -u $repo_init_url -b $repo_branch --depth 1
+    repo init -u $repo_init_url -b $repo_branch
     sync_android_scr=1
     ##### if this fails idc, its your problem biatch
 }
@@ -223,7 +223,7 @@ sync_source() {
       printf '%s\n' "Repo Sync Started"
       printf "%s\n" "*********************************************"
       printf "%s\n\n" $($reset)
-      repo sync  --force-sync --force-broken --current-branch --no-tags --no-clone-bundle --optimized-fetch --prune -j$(nproc --all) -q > /dev/null 2>&1
+      repo sync -j$(nproc) --no-tags --no-clone-bundle -c > /dev/null 2>&1
       printf "%s\n\n" $($cyan)
       printf "%s\n" "*********************************************"
       printf '%s\n' "Repo Sync Finished"
