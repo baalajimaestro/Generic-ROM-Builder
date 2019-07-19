@@ -1,8 +1,40 @@
 #!/bin/bash
+# Copyright (C) 2019 baalajimaestro
+#
+# Licensed under the Raphielscape Public License, Version 1.b (the "License");
+# you may not use this file except in compliance with the License.
+#
+# CI Runner Script for Building a ROM
 
-cyan='tput setaf 6'
-yellow='tput setaf 3'
-reset='tput sgr0'
+# We need this directive
+# shellcheck disable=1090
+
+
+##### Build Env Dependencies
+build_env()
+{
+TELEGRAM_TOKEN=$(cat /tmp/tg_token)
+TELEGRAM_CHAT=$(cat /tmp/tg_chat)
+export TELEGRAM_TOKEN
+export TELEGRAM_CHAT
+cd ~
+git config --global user.email "baalajimaestro@raphielgang.org"
+git config --global user.name "baalajimaestro"
+git clone https://github.com/akhilnarang/scripts > /dev/null 2>&1
+cd scripts
+bash setup/android_build_env.sh  > /dev/null 2>&1
+echo "Build Dependencies Installed....."
+sudo unlink /usr/bin/python
+curl -sLo upload-github-release-asset.sh https://gist.githubusercontent.com/stefanbuck/ce788fee19ab6eb0b4447a85fc99f447/raw/dbadd7d310ce8446de89c4ffdf1db0b400d0f6c3/upload-github-release-asset.sh
+sudo apt-get install p7zip-full p7zip-rar wget curl brotli -y > /dev/null 2>&1
+sudo ln -s /usr/bin/python2.7 /usr/bin/python
+cd ..
+rm -rf scripts
+}
+
+cyan=' '
+yellow=' '
+reset=' '
 
 validate_arg() {
     valid=$(echo $1 | sed s'/^[\-][a-z0-9A-Z\-]*/valid/'g)
@@ -13,7 +45,9 @@ validate_arg() {
 
 print_help() {
     echo "Usage: `basename $0` [OPTION]";
-    echo "  -i, --init-source \ Init source, current supported roms rr,pe,pe-caf" ;
+    echo "  -i, --init-source \ Declare you need repo init" ;
+    echo "  -U, --url \ Supply Repo Init URL" ;
+    echo "  -b, --branch \ Supply branch to sync" ;
     echo "  -s, --sync-android \ Sync current source" ;
     echo "  -b, --brand \ Brand name" ;
     echo "  -d, --device \ Device name" ;
@@ -48,7 +82,7 @@ while [ "$1" != "" ]; do
         -U | --url )
             repo_init_url=$next_arg
             ;;
-        -b | --branch )
+        -B | --branch )
             repo_branch=$next_arg
             ;;
         -s | --sync-android )
@@ -157,22 +191,14 @@ prepare_source() {
     printf "%s\n" "**************************"
     printf "%s\n\n" $($reset)
     source_android_scr=$prepare_source_scr
-    repo init -u $repo_init_url -b $repo_branch
-    if [ $device_tree ]; then
-      printf "%s\n\n" $($cyan)
-      printf "%s\n" "**************************"
-      printf '%s\n' "Unofficial Device Tree Detected"
-      printf "%s\n" "**************************"
-      printf "%s\n\n" $($reset)
-      git clone $device_tree device/$brand/$device
-      python3 unofficial_builder.py
-    fi
+    repo init -u $repo_init_url -b $repo_branch --depth 1
+    sync_android_scr=1
     ##### if this fails idc, its your problem biatch
 }
 
 function_check() {
-    if [ ! $TELEGRAM_TOKEN ] && [ ! $TELEGRAM_CHAT ] && [ ! $G_FOLDER ]; then
-        printf "You don't have TELEGRAM_TOKEN,TELEGRAM_CHAT,G_FOLDER set"
+    if [ ! $TELEGRAM_TOKEN ] && [ ! $TELEGRAM_CHAT ]; then
+        printf "You don't have TELEGRAM_TOKEN,TELEGRAM_CHAT set"
         exit
     fi
 
@@ -192,7 +218,17 @@ function_check() {
 
 sync_source() {
     if [ $sync_android_scr ]; then
-        repo sync -j$(nproc) --force-sync --no-tags --no-clone-bundle -c
+      printf "%s\n\n" $($cyan)
+      printf "%s\n" "*********************************************"
+      printf '%s\n' "Repo Sync Started"
+      printf "%s\n" "*********************************************"
+      printf "%s\n\n" $($reset)
+      repo sync  --force-sync --force-broken --current-branch --no-tags --no-clone-bundle --optimized-fetch --prune -j$(nproc --all) -q > /dev/null 2>&1
+      printf "%s\n\n" $($cyan)
+      printf "%s\n" "*********************************************"
+      printf '%s\n' "Repo Sync Finished"
+      printf "%s\n" "*********************************************"
+      printf "%s\n\n" $($reset)
     fi
 }
 
@@ -205,31 +241,43 @@ start_env() {
 setup_paths() {
     source build/envsetup.sh
     export USE_CCACHE=1
-
-    if [ $prepare_source_scr ]; then
+  ####### Workaround the Missing Lunch combos for official trees
+  if [ $prepare_source_scr ]; then
+    printf "%s\n\n" $($cyan)
+    printf "%s\n" "***************************************"
+    printf '%s\n' "Breakfasting device trees from rom repo"
+    printf "%s\n" "***************************************"
+    printf "%s\n\n" $($reset)
+    if ! breakfast "${device_scr}"; then
         printf "%s\n\n" $($cyan)
-        printf "%s\n" "*********************************************"
-        printf '%s\n' "Attempting to sync device trees from rom repo"
-        printf "%s\n" "*********************************************"
+        printf "%s\n" "*****************************************************"
+        printf '%s\n' "Breakfast failed! Lunching device trees from rom repo"
+        printf "%s\n" "*****************************************************"
         printf "%s\n\n" $($reset)
-        lunch "$sync_tree_scr"_"$device_scr"-userdebug
+        lunch "$prepare_source_scr"_"$device_scr"-userdebug
     fi
-
     OUT_SCR=out/target/product/$device_scr
     DEVICEPATH_SCR=device/$brand_scr/$device_scr
 
     if [ $prepare_source_scr ] && [ ! -d $DEVICEPATH_SCR ]; then
+      if [ $device_tree ]; then
         printf "%s\n\n" $($cyan)
-        printf "%s\n" "**********************************"
-        printf '%s\n' "Syncing tree from rom repo failed"
-        printf "%s\n" "**********************************"
+        printf "%s\n" "**************************"
+        printf '%s\n' "Unofficial Device Tree Detected"
+        printf "%s\n" "**************************"
         printf "%s\n\n" $($reset)
+        git clone $device_tree device/$brand/$device
+        python3 unofficial_builder.py
+        lunch "$prepare_source_scr"_"$device_scr"-userdebug
+      else
+        printf "%s\n Couldnt fetch DT"
         exit
+      fi
     fi
-
     if [ -z "$build_type_scr" ]; then
         build_type_scr=bacon
     fi
+  fi
 }
 
 clean_target() {
@@ -254,13 +302,6 @@ clean_target() {
 
 upload() {
 
-    if [ $telegram_scr ] && [ ! $(grep -c "#### build completed successfully" build.log) -eq 1 ]; then
-        bash telegram -D -M "
-        *Build for $device_scr failed!*"
-        bash telegram -f build.log
-        exit
-    fi
-
     case $build_type_scr in
         bacon)
             file=$(ls $OUT_SCR/*201*.zip | tail -n 1)
@@ -275,7 +316,7 @@ upload() {
             file=$OUT_SCR/dtbo.img
             ;;
         systemimage)
-            file=$OUT_SCR/system.imgHow to get parameter of next one
+            file=$OUT_SCR/system.img
             ;;
         vendorimage)
             file=$OUT_SCR/vendor.img
@@ -284,28 +325,32 @@ upload() {
     if [ -f $HOME/buildscript/*.img ]; then
         rm -f $HOME/buildscript/*.img
     fi
-How to get parameter of next one
+    git clone https://github.com/baalajimaestro/Generic-ROM-Builder -b binary binary
+    cd binary
+    touch "$(date +%d%m%y)-${prepare_source_scr}-$(cat /tmp/build_no)"
+    git add .
+    git commit -m "[MaestroCI]: Releasing Build ${prepare_source_scr}-$(date +%d%m%y)"
+    git tag "$(date +%d%m%y)-${prepare_source_scr}-$(cat /tmp/build_no)"
+    git remote rm origin
+    git remote add origin https://baalajimaestro:$(cat /tmp/gh_token)@github.com/baalajimaestro/Generic-ROM-Builder.git
+    git push origin binary --follow-tags
     build_date_scr=$(date +%F_%H-%M)
     if [ ! -z $build_orig_scr ] && [ $upload_scr ]; then
-        cp $file $HOME/buildscript/"$build_type_scr"-"$build_date_scr".img
+      bash upload-github-release-asset.sh github_api_token=$(cat /tmp/gh_token) owner=baalajimaestro repo=$(cat /tmp/gh_repo) tag="$(date +%d%m%y)-${prepare_source_scr}-$(cat /tmp/build_no)" filename=$file
         file=`ls $HOME/buildscript/*.img | tail -n 1`
         id=$(gdrive upload --parent $G_FOLDER $file | grep "Uploaded" | cut -d " " -f 2)
     elif [ -z $build_orig_scr ] && [ $upload_scr ]; then
-        id=$(gdrive upload --parent $G_FOLDER $file | grep "Uploaded" | cut -d " " -f 2)
+        bash upload-github-release-asset.sh github_api_token=$(cat /tmp/gh_tokens) owner=baalajimaestro repo=$(cat /tmp/gh_repo) tag="$(date +%d%m%y)-${prepare_source_scr}-$(cat /tmp/build_no)" filename=$file
     fi
 
     if [ $telegram_scr ] && [ $upload_scr ]; then
-        bash telegram -D -M "How to get parameter of next one
+        bash telegram -D -M "
         *Build for $device_scr done!*
-        Download: [Drive](https://drive.google.com/uc?export=download&id=$id) "
+        Download from Github Releases"
     fi
 }
 
 build() {
-
-    if [ -f build.log ]; then
-        rm -f build.log
-    fi
 
     if [ -f out/.lock ]; then
         rm -f out/.lock
@@ -318,10 +363,10 @@ build() {
 
     printf "%s\n\n" $($cyan)
     printf "%s\n" "***********************************************"
-    printf '%s\n' "Starting build with target $($yellow)"$build_type_scr""$($cyan)" for"$($yellow)" $device_scr $($cyan)"
+    printf '%s\n' "Started build with target $($yellow)"$build_type_scr""$($cyan)" for"$($yellow)" $device_scr $($cyan)"
     printf "%s\n" "***********************************************"
     printf "%s\n\n" $($reset)
-    sleep 2s
+    sleep 2
 
     if [ "$telegram_scr" ]; then
         bash telegram -D -M "
@@ -331,11 +376,10 @@ build() {
         Started on: *$HOSTNAME*
         Time: *$(date "+%r")* "
     fi
-
-    lunch "$product_scr"-userdebug
-    make -j$(nproc) $build_type_scr |& tee build.log
+    mka bacon | grep $device_scr
 }
 
+build_env
 if [ ! -z "$device_scr" ] && [ ! -z "$brand_scr" ]; then
     acquire_build_lock
 if [ $prepare_source_scr ]; then
