@@ -3,7 +3,7 @@ name: MaestroCI Build Bot
 
 steps:
 - name: test
-  image: ubuntu:rolling
+  image: baalajimaestro/android_build:latest
   environment:
     TELEGRAM_TOKEN:
       from_secret: TELEGRAM_TOKEN
@@ -11,5 +11,7 @@ steps:
       from_secret: TELEGRAM_CHAT
     GH_REPO_NAME:
       from_secret: GH_REPO_NAME
+    GH_PERSONAL_TOKEN:
+      from_secret: GH_PERSONAL_TOKEN
   commands:
   - bash ./runner.sh

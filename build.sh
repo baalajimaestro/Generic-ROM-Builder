@@ -13,23 +13,21 @@
 ##### Build Env Dependencies
 build_env()
 {
+
 TELEGRAM_TOKEN=$(cat /tmp/tg_token)
 TELEGRAM_CHAT=$(cat /tmp/tg_chat)
+export GH_PERSONAL_TOKEN=$(cat /tmp/gh_token)
 export TELEGRAM_TOKEN
 export TELEGRAM_CHAT
 cd ~
+git clone https://baalajimaestro:${GH_PERSONAL_TOKEN}@github.com/baalajimaestro/google-git-cookies.git > /dev/null 2>&1
+cd google-git-cookies
+bash run.sh
+cd ..
+rm -rf google-git-cookies
 git config --global user.email "baalajimaestro@raphielgang.org"
 git config --global user.name "baalajimaestro"
-git clone https://github.com/akhilnarang/scripts > /dev/null 2>&1
-cd scripts
-bash setup/android_build_env.sh  > /dev/null 2>&1
-echo "Build Dependencies Installed....."
-sudo unlink /usr/bin/python
-curl -sLo upload-github-release-asset.sh https://gist.githubusercontent.com/stefanbuck/ce788fee19ab6eb0b4447a85fc99f447/raw/dbadd7d310ce8446de89c4ffdf1db0b400d0f6c3/upload-github-release-asset.sh
-sudo apt-get install p7zip-full p7zip-rar wget curl brotli -y > /dev/null 2>&1
-sudo ln -s /usr/bin/python2.7 /usr/bin/python
-cd ..
-rm -rf scripts
+echo "Google Git Cookie Set!"
 }
 
 cyan=' '
@@ -191,7 +189,8 @@ prepare_source() {
     printf "%s\n" "**************************"
     printf "%s\n\n" $($reset)
     source_android_scr=$prepare_source_scr
-    repo init -u $repo_init_url -b $repo_branch
+    repo init -u $repo_init_url -b $repo_branch --depth 1
+    python3 /drone/src/xml_strip.py
     sync_android_scr=1
     ##### if this fails idc, its your problem biatch
 }
@@ -223,7 +222,8 @@ sync_source() {
       printf '%s\n' "Repo Sync Started"
       printf "%s\n" "*********************************************"
       printf "%s\n\n" $($reset)
-      repo sync -j$(nproc) --no-tags --no-clone-bundle -c > /dev/null 2>&1
+      repo sync --force-sync --current-branch --no-tags --no-clone-bundle --optimized-fetch --prune -j$(nproc) -q > sync.log 2>&1
+      bash telegram -f sync.log
       printf "%s\n\n" $($cyan)
       printf "%s\n" "*********************************************"
       printf '%s\n' "Repo Sync Finished"
@@ -240,7 +240,6 @@ start_env() {
 
 setup_paths() {
     source build/envsetup.sh
-    export USE_CCACHE=1
   ####### Workaround the Missing Lunch combos for official trees
   if [ $prepare_source_scr ]; then
     printf "%s\n\n" $($cyan)
@@ -301,7 +300,12 @@ clean_target() {
 }
 
 upload() {
-
+#    if [ $telegram_scr ] && [ ! $(grep -c "#### build completed successfully" build.log) -eq 1 ]; then
+#      bash telegram -D -M "
+#      *Build for $device_scr failed!*"
+#      bash telegram -f build.log
+#      exit
+#    fi
     case $build_type_scr in
         bacon)
             file=$(ls $OUT_SCR/*201*.zip | tail -n 1)
@@ -332,15 +336,15 @@ upload() {
     git commit -m "[MaestroCI]: Releasing Build ${prepare_source_scr}-$(date +%d%m%y)"
     git tag "$(date +%d%m%y)-${prepare_source_scr}-$(cat /tmp/build_no)"
     git remote rm origin
-    git remote add origin https://baalajimaestro:$(cat /tmp/gh_token)@github.com/baalajimaestro/Generic-ROM-Builder.git
+    git remote add origin https://baalajimaestro:${GH_PERSONAL_TOKEN}@github.com/baalajimaestro/Generic-ROM-Builder.git
     git push origin binary --follow-tags
     build_date_scr=$(date +%F_%H-%M)
     if [ ! -z $build_orig_scr ] && [ $upload_scr ]; then
-      bash upload-github-release-asset.sh github_api_token=$(cat /tmp/gh_token) owner=baalajimaestro repo=$(cat /tmp/gh_repo) tag="$(date +%d%m%y)-${prepare_source_scr}-$(cat /tmp/build_no)" filename=$file
+      bash upload-github-release-asset.sh github_api_token=$GH_PERSONAL_TOKEN owner=baalajimaestro repo=$(cat /tmp/gh_repo) tag="$(date +%d%m%y)-${prepare_source_scr}-$(cat /tmp/build_no)" filename=$file
         file=`ls $HOME/buildscript/*.img | tail -n 1`
         id=$(gdrive upload --parent $G_FOLDER $file | grep "Uploaded" | cut -d " " -f 2)
     elif [ -z $build_orig_scr ] && [ $upload_scr ]; then
-        bash upload-github-release-asset.sh github_api_token=$(cat /tmp/gh_tokens) owner=baalajimaestro repo=$(cat /tmp/gh_repo) tag="$(date +%d%m%y)-${prepare_source_scr}-$(cat /tmp/build_no)" filename=$file
+        bash upload-github-release-asset.sh github_api_token=$GH_PERSONAL_TOKEN owner=baalajimaestro repo=$(cat /tmp/gh_repo) tag="$(date +%d%m%y)-${prepare_source_scr}-$(cat /tmp/build_no)" filename=$file
     fi
 
     if [ $telegram_scr ] && [ $upload_scr ]; then
@@ -351,11 +355,13 @@ upload() {
 }
 
 build() {
-
+#  if [ -f build.log ]; then
+#      rm -f build.log
+#  fi
     if [ -f out/.lock ]; then
         rm -f out/.lock
     fi
-
+    export USE_CCACHE=0
     cd $DEVICEPATH_SCR
     mk_scr=`grep .mk AndroidProducts.mk | cut -d "/" -f "2"`
     product_scr=`grep "PRODUCT_NAME :=" $mk_scr | cut -d " " -f 3`
@@ -377,6 +383,12 @@ build() {
         Time: *$(date "+%r")* "
     fi
     mka bacon | grep $device_scr
+    printf "%s\n\n" $($cyan)
+    printf "%s\n" "***********************************************"
+    printf '%s\n' "Finished build with target $($yellow)"$build_type_scr""$($cyan)" for"$($yellow)" $device_scr $($cyan)"
+    printf "%s\n" "***********************************************"
+    printf "%s\n\n" $($reset)
+    sleep 2
 }
 
 build_env
