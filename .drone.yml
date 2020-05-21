@@ -1,6 +1,7 @@
 kind: pipeline
 name: MaestroCI Build Bot
-
+node:
+  instance: android-buildbot
 steps:
 - name: test
   image: baalajimaestro/android_build:latest
