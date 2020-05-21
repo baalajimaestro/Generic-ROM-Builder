@@ -15,4 +15,4 @@ steps:
     GH_PERSONAL_TOKEN:
       from_secret: GH_PERSONAL_TOKEN
   commands:
-  - bash ./runner.sh
+  - bash ./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
