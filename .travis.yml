@@ -8,5 +8,5 @@ jobs:
   include:
     - stage: test
       script:
-        - docker run baalajimaestro/android_build bin/bash -c "./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r"
+        - docker run baalajimaestro/android_build /bin/bash -c "./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r"
 
