@@ -1,5 +1,14 @@
-kind: pipeline
 name: MaestroCI Build Bot
+language: generic
+services:
+  - docker
+before_install:
+  - docker pull baalajimaestro/android_build:latest
+  - docker run -d -p 127.0.0.1:80:4567 baalajimaestro/android_build:latest /bin/sh -c "cd /root/android_build;"
+  - docker ps -a
+  - docker run carlad/sinatra /bin/sh -c "cd /root/android_build; bundle exec rake test"
+script:
+- bash ./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
 node:
   instance: android-buildbot
 steps:
