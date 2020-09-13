@@ -1,1 +1,2 @@
-ls -la
+  commands:
+  - bash ./list.sh
