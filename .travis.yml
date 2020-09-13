@@ -1,0 +1,14 @@
+language: generic
+dist: trusty
+services:
+  - docker
+before_install:
+  - docker pull baalajimaestro/android_build:latest
+  - docker run -d -p 127.0.0.1:80:4567 baalajimaestro/android_build
+  - docker ps -a
+jobs:
+  include:
+    - stage: test
+      script: 
+        - docker run baalajimaestro/android_build /bin/sh  -c "cd $TRAVIS_BUILD_DIR; ./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r"
+

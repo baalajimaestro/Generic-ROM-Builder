@@ -190,7 +190,7 @@ prepare_source() {
     printf "%s\n\n" $($reset)
     source_android_scr=$prepare_source_scr
     repo init -u $repo_init_url -b $repo_branch --depth 1
-    python3 /drone/src/xml_strip.py
+    python3 ./xml_strip.py
     sync_android_scr=1
     ##### if this fails idc, its your problem biatch
 }
