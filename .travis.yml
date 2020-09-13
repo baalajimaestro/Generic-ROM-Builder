@@ -1,27 +1,25 @@
 name: MaestroCI Build Bot
 language: generic
+sudo: required
 services:
   - docker
 before_install:
   - docker pull baalajimaestro/android_build:latest
   - docker run -d -p 127.0.0.1:80:4567 baalajimaestro/android_build:latest /bin/sh -c "cd /root/android_build;"
-  - docker ps -a
-  - docker run carlad/sinatra /bin/sh -c "cd /root/android_build; bundle exec rake test"
 script:
 - bash ./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
-node:
-  instance: android-buildbot
 steps:
 - name: test
   image: baalajimaestro/android_build:latest
-  environment:
+env:
+  global:
     TELEGRAM_TOKEN:
-      from_secret: TELEGRAM_TOKEN
+      secret: TELEGRAM_TOKEN
     TELEGRAM_CHAT:
-      from_secret: TELEGRAM_CHAT
+      secret: TELEGRAM_CHAT
     GH_REPO_NAME:
-      from_secret: GH_REPO_NAME
+      secret: GH_REPO_NAME
     GH_PERSONAL_TOKEN:
-      from_secret: GH_PERSONAL_TOKEN
+      secret: GH_PERSONAL_TOKEN
   commands:
   - bash ./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
