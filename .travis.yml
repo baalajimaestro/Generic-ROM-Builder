@@ -4,9 +4,10 @@ services:
   - docker
 before_install:
   - docker pull baalajimaestro/android_build:latest
-  - docker run -d baalajimaestro/android_build
+  - docker run baalajimaestro/android_build /bin/sh  -c "./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
+"
 jobs:
   include:
     - stage: test
       script:
-        - docker exec baalajimaestro/android_build ./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
+
