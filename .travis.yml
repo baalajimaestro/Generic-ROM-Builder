@@ -1,7 +1,12 @@
-
+language: generic
+dist: trusty
+services:
+  - docker
+before_install:
+  - docker pull baalajimaestro/android_build:latest
 jobs:
   include:
     - stage: test
       script:
-        - bash ./list.sh
-dist: trusty
+        - docker run baalajimaestro/android_build bin/bash -c "./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r"
+
