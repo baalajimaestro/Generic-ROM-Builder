@@ -4,4 +4,4 @@ jobs:
   include:
     - stage: test
       script: 
-        - bash "cd ..; ls -la;"
+        - bash ./list.sh
