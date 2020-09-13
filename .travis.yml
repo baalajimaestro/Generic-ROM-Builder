@@ -9,4 +9,4 @@ jobs:
   include:
     - stage: test
       script:
-        - docker exec bash ./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
+        - docker exec baalajimaestro/android_build ./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
