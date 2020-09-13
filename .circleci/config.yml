@@ -6,4 +6,4 @@ jobs:
     steps:
       - run:
           name: Build
-          command: source ./build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
+          command: source build.sh -i rr -U https://github.com/ResurrectionRemix/platform_manifest.git -B pie -b xiaomi -d whyred -r
